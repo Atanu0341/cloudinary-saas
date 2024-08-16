@@ -1,57 +1,53 @@
 'use client'
 
-import React, { useState } from 'react';
-import { toast, ToastContainer } from 'react-toastify';
+import axios from 'axios'
+import { useRouter } from 'next/navigation'
+import React, { useState } from 'react'
+import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css';
 
 const VideoUpload = () => {
-  const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
+
+  const [file, setFile] = useState<File | null>(null)
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [isUploading, setIsUploading] = useState(false)
+
+  const router = useRouter()
+  // max file size of 60 mb
+
+  const MAX_FILE_SIZE = 70 * 1024 * 1024
 
   const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+    event.preventDefault()
+
     if (!file) return;
 
-    setIsUploading(true);
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', 'your-upload-preset');  // You can set an upload preset in your Cloudinary dashboard.
-    
-    try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/video/upload`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-      const data = await response.json();
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File size too large")
+      return;
+    }
 
-      if (data.secure_url) {
-        // After successful upload, you can store the video details in your database
-        const videoData = {
-          title,
-          description,
-          publicId: data.public_id,
-          originalSize: file.size.toString(),
-          compressedSize: data.bytes.toString(),
-          duration: data.duration || 0,
-        };
-        // Send videoData to your server or database
-        toast.success("Video uploaded successfully!");
-      } else {
-        throw new Error('Failed to upload video');
+    setIsUploading(true)
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("title", title)
+    formData.append("description", description)
+    formData.append("originalSize", file.size.toString())
+
+    try {
+      const response = await axios.post("/api/video-upload", formData)
+      if (response.status === 200) {
+        toast.success("Video uploaded successfully!")
+        router.push("/")
       }
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to upload video");
+      console.log(error)
+      toast.error("Failed to upload video")
     } finally {
-      setIsUploading(false);
+      setIsUploading(false)
     }
-  };
+  }
 
   return (
     <div className='container mx-auto p-4'>
@@ -75,13 +71,11 @@ const VideoUpload = () => {
           </label>
           <input type="file" accept="video/*" onChange={(event) => setFile(event.target.files?.[0] || null)} className='file-input file-input-bordered w-full' required />
         </div>
-        <button type="submit" className='btn btn-primary' disabled={isUploading}>
-          {isUploading ? "Uploading..." : "Upload Video"}
-        </button>
+        <button type="submit" className='btn btn-primary' disabled={isUploading}>{isUploading ? "Uploading..." : "Upload Video"}</button>
       </form>
       <ToastContainer />
     </div>
-  );
-};
+  )
+}
 
-export default VideoUpload;
+export default VideoUpload
